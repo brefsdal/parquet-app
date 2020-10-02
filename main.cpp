@@ -12,6 +12,8 @@
 #include <glog/logging.h>
 
 #include <iostream>
+#include <istream>
+#include <fstream>
 #include <string>
 #include <string_view>
 
@@ -24,7 +26,7 @@ DEFINE_string(outfile, "foo.parquet", "Output file in Parquet format");
 
 /**
  * 
- *  g++ -Wall -std=c++17 -I/usr/local/include -o main main.cpp -lasan -lparquet -larrow -lglog -lgflags
+ *  g++ -Wall -std=c++17 -I/usr/local/include -o main main.cpp -lparquet -larrow -lglog -lgflags
  *  ./main --infile <csv or json file> --outfile <parquet file path> --std 
  * 
  */
@@ -34,7 +36,6 @@ static Status write_parquet_file(
     const std::string &filename,
     const arrow::Table& table) {
 
-    //std::shared_ptr<parquet::WriterProperties> properties = parquet::default_writer_properties();
     auto properties = parquet::WriterProperties::Builder()
         //.encoding(parquet::Encoding::PLAIN_DICTIONARY)
         .compression(arrow::Compression::ZSTD)
@@ -87,7 +88,6 @@ static Status parse_json_arrow(std::string &filename) {
    auto parse_options = arrow::json::ParseOptions::Defaults();
 
    LOG(INFO) << "* Reading JSON file '" << filename << "' into table";
-   // Instantiate TableReader from input stream and options
    ARROW_ASSIGN_OR_RAISE(auto input_file, arrow::io::ReadableFile::Open(filename));
    ARROW_ASSIGN_OR_RAISE(auto json_reader, 
      arrow::json::TableReader::Make(pool, input_file, read_options,
@@ -97,13 +97,13 @@ static Status parse_json_arrow(std::string &filename) {
     return write_parquet_file(pool, FLAGS_outfile, *table.get());
 }
 
-static bool ends_with(const std::string &filename, const std::string &extension) {
-    if (auto ex = filename.find_last_of("."); ex != std::string::npos) {
-            if (filename.substr(ex + 1) == extension)
-                return true;
-    }
-    return false;
-}
+// static bool ends_with(const std::string &filename, const std::string &extension) {
+//     if (auto ex = filename.find_last_of("."); ex != std::string::npos) {
+//             if (filename.substr(ex + 1) == extension)
+//                 return true;
+//     }
+//     return false;
+// }
 
 int main(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -112,14 +112,24 @@ int main(int argc, char** argv) {
     std::string filename = FLAGS_infile;
     Status status;
 
-    if (ends_with(filename, "json")) {
+    std::fstream fs;
+    fs.open(filename, std::fstream::in);
+    char first_char = fs.peek(); 
+    if (first_char == '{' || first_char == '[') {
         status = parse_json_arrow(filename);
-    } else if (ends_with(filename, "csv")) {
-        status = parse_csv_arrow(filename);
-    } else {
-        LOG(ERROR) << "Unknown file format";
-        return 1;
     }
+    else {
+        status = parse_csv_arrow(filename);
+    }
+
+    // if (ends_with(filename, "json")) {
+    //     status = parse_json_arrow(filename);
+    // } else if (ends_with(filename, "csv")) {
+    //     status = parse_csv_arrow(filename);
+    // } else {
+    //     LOG(ERROR) << "Unknown file format";
+    //     return 1;
+    // }
     if (!status.ok()) {
         LOG(ERROR) << status;
         return 1;
