@@ -1,0 +1,19 @@
+Build Googletest and Googlemock from source
+
+mkdir build && cd build
+cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" ..
+sudo install
+
+Build thrift from source
+
+git clone https://github.com/apache/thrift.git
+cd thrift/
+./bootstrap.sh 
+./configure
+make -j8
+sudo make install
+
+
+Install dependencies from apt
+
+sudo apt install liblz4-dev libbz2-dev rapidjson-dev libsnappy-dev libzstd-dev libbrotli-dev
